@@ -3,6 +3,7 @@ Introduction
 This project is a Remote Access Tool (RAT) written in Python. It includes both the server (GUI) and the client in a single file. The server side runs a customtkinter GUI where you can manage and control multiple connected clients. The client side, once compiled, can connect back to the server, providing various functionalities like remote shell, file management, keylogging, screenshots, and more.
 
 !!!!!  THIS RAT DOES REQUIRE PORT FORWARDING TO YOUR PUBLIC IP ADDRESS TO YOUR IPV4 ADDRESS  !!!!!
+
 !!!!! IN MY TESTING THIS RAT SUPRISINGLY DID NOT FLAG MY AV (WD)  TEST FOR YOUR OWN  !!!!!
 
 
